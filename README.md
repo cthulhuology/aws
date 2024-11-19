@@ -8,21 +8,20 @@ it depends upon my beamer, json, and http modules.
 Getting Started
 ---------------
 
-	aws:start_link("http://bedrock-runtime.eu-east-1.amazonaws.com/"),
-	aws:response( fun(X) -> 
-		[ Content ] = proplists:get_value(<<"content">>, json:decode(X)),
-		Text = proplists:get_value(<<"text">>, Content ),
-		io:format("~s~n", [ Text ]) end ),
-	aws:post("/model/anthropic.claude-3-5-sonnet-20240620-v1:0/invoke",
-		[{ <<"anthropic_version">>, <<"bedrock-2023-05-31">> },
-		 { <<"messages">>, [
-			[{ <<"role">>,<<"user">>}},
-			{<<"content">>,<<"tell me a joke">>}]
-			]},
-		 { <<"max_tokens">>, 40000 }]).
+	Bedrock = aws:service(<<"https://bedrock-runtime.us-east-1.amazonaws.com">>,
+		<<"bedrock">>,<<"us-east-1">>, aws:credentials()),
+	Request = aws:request(Bedrock,<<"POST">>,
+		<<"/model/anthropic.claude-3-5-sonnet-20240620-v1:0/invoke">>,
+		[{<<"accept">>,<<"application/json">>},
+		 {<<"content-type">>,<<"application/json">>}],
+		<<"{\"anthropic_version\":\"bedrock-2023-05-31\",\"messages\":[{ \"role\": \"user\",\"content\":\"write me a sonnet\"}], \"max_tokens\": 40000 }\n">>),
+	SignedRequest = aws:sign(Request),
+	aws:send(Request),
+	aws:then(My,handler).
 
 Basically, the pattern is start the server, register a function or module:function using
-response/1 or response/2 as your handler, and then post/2 or get/1 an AWS api.
+then/1 or then/2 as your handler, and then send/1 the an AWS api. Optionally,
+you can use post/3 or get/2 for APIs that natively support JSON.
 
 Installing
 ----------
