@@ -58,7 +58,7 @@ hmac256(Key,Data) ->
 
 %% SHA256 Digest
 digest(Data) ->
-	binary:encode_hex(crypto:hash(sha256,Data)).
+	string:lowercase(binary:encode_hex(crypto:hash(sha256,Data))).
 
 %% Sign a canonical request
 signature(Secret,Date,Region,Service,Sig) ->
@@ -68,7 +68,7 @@ signature(Secret,Date,Region,Service,Sig) ->
 	S2 = hmac256(S1,Region),
 	S3 = hmac256(S2,Service),
 	S4 = hmac256(S3,"aws4_request"),
-	binary:encode_hex(hmac256(S4,Sig)).
+	string:lowercase(binary:encode_hex(hmac256(S4,Sig))).
 
 %% signable predicate
 signable(Key) ->
@@ -96,7 +96,6 @@ signedHeaders(Headers) ->
 	lists:map( fun({K,_}) -> string:lowercase(K) end, Headers))))).
 
 canonicalHeaders(Headers) ->
-	io:format("~p~n",[ Headers]),
 	list_to_binary(
 	lists:map( fun({K,V}) -> <<K/binary,":",V/binary,"\n">>  end,
 	lists:filter( fun({K,_}) -> signable(K) end,
@@ -155,12 +154,10 @@ sign(Request = #aws_request{ method = Method,
 	S = signedHeaders(H),
 	B = digest(Payload),
 	CR = canonicalRequest(Method,Path,Query,H,S,B),
-	io:format("~s~n", [ CR ]),
 	CS = digest(CR),
 	SS = stringToSign(Service,Region,Date,CS),
 	Sig = signature(Secret,Date,Region,Service,SS),
 	Auth = authToken(Access,Service,Region,Date,S,Sig),
-	io:format("~s~n", [ Auth ]),
 	Request#aws_request{ headers = [{<<"Authentication">>, Auth} | H ]}.
 
 service(Endpoint,Service,Region,Creds) ->
@@ -176,7 +173,6 @@ request(#aws_service{ endpoint = Endpoint, service = Service,
 	service = Service, region = Region, creds = Creds, 
 	date = calendar:universal_time(), headers = Headers, payload = Payload }.
 
-		
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -200,6 +196,5 @@ parseUrl_test() ->
 		<<"/model/anthropic.claude-3-5-sonnet-20240620-v1:0/invoke">>,
 		<<"443">>, <<"https">>,<<"?foo=bar&narf=blat">> },
  		parseUrl(<<"https://bedrock-runtime.us-east-1.amazonaws.com:443/model/anthropic.claude-3-5-sonnet-20240620-v1:0/invoke?foo=bar&narf=blat">>)).
-
 
 -endif.
