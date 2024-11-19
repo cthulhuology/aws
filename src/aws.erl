@@ -1,6 +1,6 @@
 -module(aws).
 
--export([ credentials/0, sign/1, service/4, request/5]).
+-export([ credentials/0, sign/1, service/4, request/5, post/3, get/2, then/1, then/2 ]).
 
 -record(aws_service, { endpoint, service, region, creds }).
 -record(aws_request, {  method, url, proto, host, port, path, query, service, region, creds, date, headers, payload  }).
@@ -173,6 +173,23 @@ request(#aws_service{ endpoint = Endpoint, service = Service,
 	service = Service, region = Region, creds = Creds, 
 	date = calendar:universal_time(), headers = Headers, payload = Payload }.
 
+post(Service,Path,JSON) ->
+	Request = sign(request(Service,<<"POST">>,Path, 
+		[{<<"accept">>,<<"application/json">>},
+		{<<"content-type">>,<<"application/json">>}],
+		json:encode(JSON))),
+	http:post(Request#aws_request.url, Request#aws_request.headers, Request#aws_request.payload).
+
+get(Service,Path) ->
+	Request = sign(request(Service,<<"GET">>,Path,[],<<>>)),
+	http:get(Request#aws_request.url, Request#aws_request.headers).
+
+then(Module,Function) ->
+	http:then(Module,Function).
+
+then(Function) ->
+	http:then(Function).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -189,7 +206,7 @@ amznDateStamp_test() ->
 
 canonicalHeaders_test() ->
 	?assertEqual(<<"content-type:application/json\nhost:localhost:123\nx-amz-date:20241119T163256Z\n">>,
-		canonicalHeaders(createHeaders([{<<"Content-Type">>,<<"application/json">>},{<<"Content-Length">>,<<"34">>}],<<"localhost:123">>,[],{{2024,11,19},{16,32,56}}))).
+		canonicalHeaders(createHeaders([{<<"Content-Type">>,<<"application/json">>},{<<"Content-Length">>,<<"34">>}],<<"localhost:123">>,<<>>,{{2024,11,19},{16,32,56}}))).
 
 parseUrl_test() ->
 	?assertEqual({<<"bedrock-runtime.us-east-1.amazonaws.com">>,
