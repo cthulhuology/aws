@@ -9,6 +9,7 @@ Getting Started
 ---------------
 
 	Self = self(),
+	http:start(),
 	Bedrock = aws:service(<<"https://bedrock-runtime.us-east-1.amazonaws.com">>,<<"bedrock">>,<<"us-east-1">>, aws:credentials()),
 	aws:then( fun(X) -> 
 		JSON = json:decode(X),
