@@ -158,7 +158,6 @@ sign(Request = #aws_request{ method = Method,
 	SS = stringToSign(Service,Region,Date,CS),
 	Sig = signature(Secret,Date,Region,Service,SS),
 	Auth = authToken(Access,Service,Region,Date,S,Sig),
-	io:format("Auth: ~s~n", [ Auth]),
 	Request#aws_request{ headers = [{<<"Authorization">>, Auth} | H ]}.
 
 service(Endpoint,Service,Region,Creds) ->

@@ -1,0 +1,38 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+%% -pa $HOME/.beamer -noshell -noinput
+%%
+%% Copyright 2024 David J Goehrig <dave@dloh.org>
+%%
+
+claude(Prompt) ->
+	Bedrock = aws:service(<<"https://bedrock-runtime.us-east-1.amazonaws.com">>,<<"bedrock">>,<<"us-east-1">>, aws:credentials()),
+	Self = self(),
+	aws:then( fun(X) -> 
+		JSON = json:decode(X),
+		[Content] = proplists:get_value(<<"content">>, JSON),
+		Message = proplists:get_value(<<"text">>, Content),
+		Self ! Message end),
+	aws:post(Bedrock,<<"/model/anthropic.claude-3-5-sonnet-20240620-v1:0/invoke">>,
+		[{<<"anthropic_version">>,<<"bedrock-2023-05-31">>},
+		{<<"messages">>,[[{ <<"role">>,<<"user">> },{<<"content">>,Prompt}]]},
+		{<<"max_tokens">>,40000}]).
+
+wait() ->
+	receive
+		Message -> io:format("~s~n", [Message] )
+	end.
+	
+
+main(["help"]) ->
+	io:format("bedrock ask claude a question on the command line~n");
+
+main(Args) ->
+	{ok, [[ Path ]]} = init:get_argument(home),
+	Home = lists:flatten(string:replace(Path,"\\","/",all)),
+	code:add_patha(Home ++ "/.beamer"),
+	Prompt = list_to_binary(lists:join(" ", Args)),
+	http:start(),
+	claude(Prompt),
+	wait().
+	
