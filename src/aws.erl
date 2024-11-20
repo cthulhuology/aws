@@ -136,7 +136,7 @@ stringToSign(Service,Region,Date,CanonicalSig) ->
 
 authToken(Access,Service,Region,Date,SignedHeaders,Sig) ->
 	S = scope(Service,Region,Date),
-	<<"AWS3-HMAC-SHA256 Credentials=",Access/binary,"/",S/binary,
+	<<"AWS4-HMAC-SHA256 Credential=",Access/binary,"/",S/binary,
 	  ", SignedHeaders=", SignedHeaders/binary, ", Signature=", Sig/binary>>.
 
 
@@ -158,7 +158,8 @@ sign(Request = #aws_request{ method = Method,
 	SS = stringToSign(Service,Region,Date,CS),
 	Sig = signature(Secret,Date,Region,Service,SS),
 	Auth = authToken(Access,Service,Region,Date,S,Sig),
-	Request#aws_request{ headers = [{<<"Authentication">>, Auth} | H ]}.
+	io:format("Auth: ~s~n", [ Auth]),
+	Request#aws_request{ headers = [{<<"Authorization">>, Auth} | H ]}.
 
 service(Endpoint,Service,Region,Creds) ->
 	#aws_service{ endpoint = Endpoint, service = Service, 
@@ -174,10 +175,12 @@ request(#aws_service{ endpoint = Endpoint, service = Service,
 	date = calendar:universal_time(), headers = Headers, payload = Payload }.
 
 post(Service,Path,JSON) ->
+	Payload = json:encode(JSON),
 	Request = sign(request(Service,<<"POST">>,Path, 
 		[{<<"accept">>,<<"application/json">>},
-		{<<"content-type">>,<<"application/json">>}],
-		json:encode(JSON))),
+		{<<"content-type">>,<<"application/json">>},
+		{<<"content-length">>,integer_to_binary(byte_size(Payload))}],
+		Payload)),
 	http:post(Request#aws_request.url, Request#aws_request.headers, Request#aws_request.payload).
 
 get(Service,Path) ->
@@ -185,7 +188,7 @@ get(Service,Path) ->
 	http:get(Request#aws_request.url, Request#aws_request.headers).
 
 then(Module,Function) ->
-	http:then(Module,Function).
+	http:then(fun(X) -> Module:Function(X) end).
 
 then(Function) ->
 	http:then(Function).
